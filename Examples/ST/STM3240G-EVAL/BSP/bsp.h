@@ -425,7 +425,7 @@ void        BSP_LED_Off   (CPU_INT08U  led);
 
 void        BSP_LED_Toggle(CPU_INT08U  led);
 
-void        BSP_ButtonInit(void);
+static void        BSP_ButtonInit(void);
 
 void        BSP_SEGMENT_On (CPU_INT08U com, CPU_INT08U seg);
 void        BSP_SEGMENT_Off (void);

@@ -1,33 +1,17 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
-PROJECT(micrium_test)
+PROJECT(micrium_test C ASM)
 
-SET(CMAKE_SYSTEM_NAME Linux)
+# SET(CMAKE_SYSTEM_NAME Linux)
 SET(CMAKE_SYSTEM_PROCESSOR ARM)
 SET(UTIL_SEARCH_CMD which)
 
-SET(TOOLCHAIN_PERFIX arm-none-eabi-)
+set(CMAKE_SHARED_LIBRAR_LINK_C_FLAGS "")
+set(CMAKE_SHARED_LIBRAR_LINK_CXX_FLAGS "")
+set(CMAKE_C_COMPILER arm-none-eabi-gcc)
+set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
 
-EXECUTE_PROCESS(
-    COMMAND ${UTIL_SEARCH_CMD} ${TOOLCHAIN_PERFIX}gcc
-    OUTPUT_VARIABLE BINUTILS_PATH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-
-set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}gcc)
-set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER})
-set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}g++)
-
-set(CMAKE_OBJCOPY ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}objcopy CACHE INTERNAL "objcopy tool")
-set(CMAKE_SIZE_UTIL ${ARM_TOOLCHAIN_DIR}/${TOOLCHAIN_PREFIX}size CACHE INTERNAL "size tool")
-
-set(CMAKE_SYSROOT ${ARM_TOOLCHAIN_DIR}/../arm-none-eabi)
-set(CMAKE_FIND_ROOT_PATH ${BINUTILS_PATH})
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-
-set( CPU_FLAGS "-mthumb -mcpu=cortex-m4 -march=armv7-m -mfloat-abi=fpu" )
-set( COMPILER_FLAGS "-ffreestanding -ffunction-sections -fdata-sections -fsigned-char -fmessage-length=0 -fshort-enums")
+set( CPU_FLAGS "-mthumb -mcpu=cortex-m4 -mfpu=vfpv3-d16 -mfloat-abi=hard" )
+set( COMPILER_FLAGS "-ffunction-sections -fdata-sections -fsigned-char -fmessage-length=0 -fshort-enums")
 
 
 #############################
@@ -45,7 +29,7 @@ set( USER_OS_DIR ${USER_DIR}/OS3 )
 set( CPU_DIR ${CMAKE_SOURCE_DIR}/Software/uC-CPU )
 set( LIB_DIR ${CMAKE_SOURCE_DIR}/Software/uC-LIB )
 set( OS_DIR ${CMAKE_SOURCE_DIR}/Software/uCOS-III )
-# set( SERIAL_DIR ${CMAKE_SOURCE_DIR}/Software/uC-Serial ) # do not need this
+set( SERIAL_DIR ${CMAKE_SOURCE_DIR}/Software/uC-Serial )
 
 ###############################################################################
 
@@ -66,6 +50,10 @@ set(INC_FOLDERS
     ${LIB_DIR}/Ports/ARM-Cortex-M4/GNU
     ${OS_DIR}/Source
     ${OS_DIR}/Ports/ARM-Cortex-M4/Generic/GNU
+    ${SERIAL_DIR}/Driver/ST
+    ${SERIAL_DIR}/Line
+    ${SERIAL_DIR}/OS
+    ${SERIAL_DIR}/Source
 )
 
 ####################
@@ -142,28 +130,28 @@ set(HAL_SRCS
 set(BSP_SRCS
     ${BSP_DIR}/bsp.c
     ${BSP_DIR}/bsp_int.c
-    ${BSP_DIR}/bsp_p.c
+    # ${BSP_DIR}/bsp_p.c
     ${BSP_DIR}/bsp_periph.c
     ${BSP_DIR}/cpu_bsp.c
-    ${BSP_DIR}/serial_bsp_stm3240x.c
+    # ${BSP_DIR}/serial_bsp_stm3240x.c
     ${BSP_DIR}/CMSIS/system_stm32f4xx.c
     ${BSP_DIR}/OS/uCOS-III/bsp_os.c
 )
 
-set(${USER_OS_SRCS}
+set(USER_OS_SRCS
     ${USER_OS_DIR}/app.c
-    ${USER_OS_DIR}/app_org.c
-    ${USER_OS_DIR}/app_serial.c
-    ${USER_OS_DIR}/app_hooks.c
+    # ${USER_OS_DIR}/app_org.c
+    # ${USER_OS_DIR}/app_serial.c
+    ${USER_OS_DIR}/os_app_hooks.c
 )
 
-set(${CPU_SRCS}
+set(CPU_SRCS
     ${CPU_DIR}/cpu_core.c
     ${CPU_DIR}/ARM-Cortex-M4/GNU/cpu_c.c
-    ${CPU_DIR}/ARM-Cortex-M4/GNU/cpu_s.s
+    ${CPU_DIR}/ARM-Cortex-M4/GNU/cpu_a.s
 )
 
-set(${LIB_SRCS}
+set(LIB_SRCS
     ${LIB_DIR}/lib_ascii.c
     ${LIB_DIR}/lib_math.c
     ${LIB_DIR}/lib_mem.c
@@ -171,7 +159,7 @@ set(${LIB_SRCS}
     ${LIB_DIR}/Ports/ARM-Cortex-M4/GNU/lib_mem_a.s
 )
 
-set(${OS_SRCS}
+set(OS_SRCS
     ${OS_DIR}/Source/os_cfg_app.c
     ${OS_DIR}/Source/os_core.c
     ${OS_DIR}/Source/os_dbg.c
@@ -194,6 +182,18 @@ set(${OS_SRCS}
     ${OS_DIR}/Ports/ARM-Cortex-M4/Generic/GNU/os_cpu_a.S
 )
 
+set(SERIAL_FILES
+    ${SERIAL_DIR}/Driver/ST/serial_drv_stm32.c
+    ${SERIAL_DIR}/Line/serial_line_dflt.c
+    ${SERIAL_DIR}/Line/serial_line_probe.c
+    ${SERIAL_DIR}/Line/serial_line_tty.c
+    ${SERIAL_DIR}/OS/uCOS-III/serial_os.c
+    ${SERIAL_DIR}/Source/serial_buf.c
+    ${SERIAL_DIR}/Source/serial.c
+    )
+
+# set_property( SOURCE ${CMAKE_SOURCE_DIR}/startup_stm32f407xx.s PROPERTY LANGUAGE C )
+
 set(SRC_FILES
     ${HAL_SRCS}
     ${BSP_SRCS}
@@ -201,12 +201,17 @@ set(SRC_FILES
     ${CPU_SRCS}
     ${LIB_SRCS}
     ${OS_SRCS}
+    ${SERIAL_FILES}
+    ${CMAKE_SOURCE_DIR}/startup_stm32f407xx.s
 )
 
 ###############################################################################
 
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
-set( CMAKE_C_FLAGS ${CPU_FLAGS} ${COMPILER_FLAGS} )
+SET( CMAKE_SHARED_LIBRARY_LINK_C_FLAGS )
+set( CMAKE_C_FLAGS "${COMPILER_FLAGS} ${CPU_FLAGS}" )
+set( CMAKE_ASM_FLAGS "${CPU_FLAGS}" )
+set( CMAKE_EXE_LINKER_FLAGS "-T../STM32F407VGTx_FLASH.ld -Wl,--gc-section" )
 INCLUDE_DIRECTORIES( ${INC_FOLDERS} )
 ADD_EXECUTABLE( ${PROJECT_NAME}.elf ${SRC_FILES} )
 
