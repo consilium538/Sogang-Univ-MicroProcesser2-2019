@@ -106,9 +106,33 @@ LoopFillZerobss:
   bcc  FillZerobss
 
 /* Call the clock system intitialization function.*/
-  bl  SystemInit   
+  bl  SystemInit
+  
+/* Enable Floating Point Support at reset for FPU */
+  /* Load address of CPACR register */
+  ldr.w  r0, =0xE000ED88
+  /* Read value at CPACR */
+  ldr  r1, [r0]
+  /* Set bits 20-23 to enable CP10 and CP11 coprocessors */
+  orr  r1,  r1, #(0xF <<20)
+  /* Write back the modified CPACR value */
+  str  r1, [r0]
+  /* Wait for store to complete */
+  dsb
+  
+/* Disable automatic FP register content */
+/* Disable lazy context switch */
+  
+  /* Load address to FPCCR register */
+  ldr.w  R0, =0xE000EF34         
+  ldr  R1, [R0]
+  /* Clear the LSPEN and ASPEN bits */
+  and  R1,  R1, #(0x3FFFFFFF)
+  str  R1, [R0]
+  /* Reset pipeline now the FPU is enabled */
+  isb
 /* Call static constructors */
-    bl __libc_init_array
+  bl __libc_init_array
 /* Call the application's entry point.*/
   bl  main
   bx  lr    
@@ -153,8 +177,8 @@ g_pfnVectors:
   .word  SVC_Handler
   .word  DebugMon_Handler
   .word  0
-  .word  PendSV_Handler
-  .word  SysTick_Handler
+  .word  OS_CPU_PendSVHandler
+  .word  OS_CPU_SysTickHandler
   
   /* External Interrupts */
   .word     WWDG_IRQHandler                   /* Window WatchDog              */                                        

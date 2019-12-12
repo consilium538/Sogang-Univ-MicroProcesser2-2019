@@ -1,0 +1,14 @@
+..\
+..\..\BSP
+..\..\BSP\OS\uCOS-III
+..\..\..\STM32CubeF4\Drivers\CMSIS\Device\ST\STM32F4xx\Include
+..\..\..\STM32CubeF4\Drivers\STM32F4xx_HAL_Driver\Inc
+..\..\..\..\..\Software\uC-CPU
+..\..\..\..\..\Software\uC-CPU\ARM-Cortex-M4\IAR
+..\..\..\..\..\Software\uC-LIB
+..\..\..\..\..\Software\uCOS-III\Source
+..\..\..\..\..\Software\uCOS-III\Ports\ARM-Cortex-M4\Generic\IAR
+..\..\..\..\..\Software\uC-Serial\Driver\ST
+..\..\..\..\..\Software\uC-Serial\Line
+..\..\..\..\..\Software\uC-Serial\OS
+..\..\..\..\..\Software\uC-Serial\Source
