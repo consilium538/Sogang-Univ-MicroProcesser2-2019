@@ -64,6 +64,7 @@
             /* --------------- APPLICATION GLOBALS ---------------- */
 static  OS_TCB       AppTaskStartTCB;
 static  CPU_STK      AppTaskStartStk[APP_CFG_TASK_START_STK_SIZE];
+uint8_t k;
 
 /*
 *********************************************************************************************************
@@ -72,7 +73,8 @@ static  CPU_STK      AppTaskStartStk[APP_CFG_TASK_START_STK_SIZE];
 */
 
 static  void  AppTaskStart (void  *p_arg);
-void BSP_ButtonClearIT(void);
+void BSP_LEDrefresh(uint8_t k);
+
 /*
 *********************************************************************************************************
 *                                                main()
@@ -80,8 +82,24 @@ void BSP_ButtonClearIT(void);
 */
 static void Button_ISR_Handler(void)
 {
-  BSP_LED_Toggle(5u);
-  BSP_ButtonClearIT();
+    k = k + 1;
+    BSP_LEDrefresh(k);
+    BSP_ButtonClearIT();
+}
+
+void BSP_LEDrefresh(uint8_t k)
+{
+    uint32_t bsrr_mask = 0;
+    if(k & DEF_BIT_00) bsrr_mask |= DEF_BIT_12; // BSP_GPIOD_LED4
+    else bsrr_mask |= DEF_BIT_12 << 16;
+    if(k & DEF_BIT_01) bsrr_mask |= DEF_BIT_13; // BSP_GPIOD_LED3
+    else bsrr_mask |= DEF_BIT_13 << 16;
+    if(k & DEF_BIT_02) bsrr_mask |= DEF_BIT_14; // BSP_GPIOD_LED5
+    else bsrr_mask |= DEF_BIT_14 << 16;
+    if(k & DEF_BIT_03) bsrr_mask |= DEF_BIT_15; // BSP_GPIOD_LED6
+    else bsrr_mask |= DEF_BIT_15 << 16;
+
+    GPIOD->BSRR = bsrr_mask;
 }
 
 int main(void)
@@ -119,7 +137,6 @@ int main(void)
     }
 }
 
-
 /*
 *********************************************************************************************************
 *                                          STARTUP TASK
@@ -129,8 +146,7 @@ int main(void)
 static  void  AppTaskStart (void *p_arg)
 {
     OS_ERR      err;
-    unsigned char k;
-   (void)p_arg;
+    (void)p_arg;
 
     BSP_Init();                                                 /* Initialize BSP functions                             */
     CPU_Init();                                                 /* Initialize the uC/CPU services                       */
@@ -142,10 +158,11 @@ static  void  AppTaskStart (void *p_arg)
     BSP_SEGMENT_Off ();
     k=1;
     while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
-        BSP_LED_Toggle(0u);
-        BSP_SEGMENT_On(k++,0xf2);
-        if (k == 5) k=1;
-        OSTimeDlyHMSM(0u, 0u, 0u, 100,
+        // BSP_LED_Toggle(0u);
+        // BSP_SEGMENT_On(k++,0xf2);
+        if (k == 16) k=1; else k++;
+        BSP_LEDrefresh(k);
+        OSTimeDlyHMSM(0u, 0u, 1u, 0u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
     }

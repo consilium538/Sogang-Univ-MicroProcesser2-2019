@@ -80,6 +80,15 @@
 #define  BSP_GPIOD_SEGCOM3                      DEF_BIT_02
 #define  BSP_GPIOE_SEGCOM4                      DEF_BIT_15
 
+#define  BSP_GPIOD_K0                           DEF_BIT_00
+#define  BSP_GPIOD_K1                           DEF_BIT_01
+#define  BSP_GPIOD_K2                           DEF_BIT_02
+#define  BSP_GPIOD_K3                           DEF_BIT_03
+#define  BSP_GPIOB_K4                           DEF_BIT_04
+#define  BSP_GPIOB_K5                           DEF_BIT_05
+#define  BSP_GPIOB_K6                           DEF_BIT_06
+#define  BSP_GPIOB_K7                           DEF_BIT_07
+
 /*
 *********************************************************************************************************
 *                                           LOCAL CONSTANTS
@@ -726,4 +735,74 @@ void  BSP_SEGMENT_Off ()
   HAL_GPIO_WritePin(GPIOE, BSP_GPIOE_SEGMENTG, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOC, BSP_GPIOC_SEGMENTH, GPIO_PIN_RESET);
 
+}
+
+/*
+*********************************************************************************************************
+*                                           BSP_SEGMENT_Init()
+*
+* Description : Initialize any or all the SEVEN SEGMENT LEDs Installed.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*
+* Caller(s)   : Application.
+*
+* Note(s)     : 
+  K0  GPIOD_0
+  K1  GPIOD_1
+  K2  GPIOD_2
+  K3  GPIOD_3
+  K4  GPIOB_4
+  K5  GPIOB_5
+  K6  GPIOB_6
+  K7  GPIOB_7
+*********************************************************************************************************
+*/
+
+static void BSP_KeyMat_Init()
+{
+     GPIO_InitTypeDef      gpio_init;
+
+     // Configure GPIOD
+
+     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+     gpio_init.Pull = GPIO_PULLUP;
+     gpio_init.Speed = GPIO_SPEED_HIGH;
+
+     BSP_PeriphEn(BSP_PERIPH_ID_GPIOD);
+     gpio_init.Pin = BSP_GPIOD_K0 | BSP_GPIOD_K1 | BSP_GPIOD_K2 | BSP_GPIOD_K3;
+     HAL_GPIO_Init(GPIOD, &gpio_init);
+
+     // Configure GPIOB
+
+     gpio_init.Mode = GPIO_MODE_INPUT;
+     gpio_init.Pull = GPIO_PULLDOWN;
+     gpio_init.Speed = GPIO_SPEED_HIGH;
+
+     BSP_PeriphEn(BSP_PERIPH_ID_GPIOB);
+     gpio_init.Pin = BSP_GPIOB_K4 | BSP_GPIOB_K5 | BSP_GPIOB_K6 | BSP_GPIOB_K7;
+     HAL_GPIO_Init(GPIOB, &gpio_init);
+}
+
+/*
+*********************************************************************************************************
+*                                             BSP_SEGMET_On()
+*
+* Description : Turn ON any or all the LEDS in the SEGMENT specified by com
+*
+* Argument(s) : none.
+*
+* Return(s)   : Key matrix status, x bit set means button x is pressed
+*
+* Caller(s)   : Application.
+*
+* Note(s)     : none.
+*********************************************************************************************************
+*/
+
+uint16_t BSP_KeyMat_Init (void)
+{
+     return 0u;
 }

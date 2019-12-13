@@ -399,6 +399,7 @@ void        BSP_IntHandlerCRYP              (void);
 void        BSP_IntHandlerHASH_RNG          (void);
 void        BSP_IntHandlerFPU               (void);
 
+void        BSP_ButtonClearIT               (void);
 
 /*
 *********************************************************************************************************

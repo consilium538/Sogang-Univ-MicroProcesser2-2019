@@ -203,7 +203,8 @@ set(SRC_FILES
     ${LIB_SRCS}
     ${OS_SRCS}
     ${SERIAL_FILES}
-    ${CMAKE_SOURCE_DIR}/startup_stm32f407xx.s
+    # ${CMAKE_SOURCE_DIR}/startup_stm32f407xx.s
+    ../Examples/ST/STM3240G-EVAL/BSP/TrueSTUDIO/startup.s
 )
 
 ###############################################################################
@@ -213,6 +214,7 @@ SET( CMAKE_SHARED_LIBRARY_LINK_C_FLAGS )
 set( CMAKE_C_FLAGS "${COMPILER_FLAGS} ${CPU_FLAGS}" )
 set( CMAKE_ASM_FLAGS "${CPU_FLAGS}" )
 set( CMAKE_EXE_LINKER_FLAGS "-T../stm32f4_flash.ld -Wl,--gc-section" )
+# set( CMAKE_EXE_LINKER_FLAGS "-T../Examples/ST/STM3240G-EVAL/BSP/TrueSTUDIO/startup.s -Wl,--gc-section" )
 INCLUDE_DIRECTORIES( ${INC_FOLDERS} )
 ADD_EXECUTABLE( ${PROJECT_NAME}.elf ${SRC_FILES} )
 
