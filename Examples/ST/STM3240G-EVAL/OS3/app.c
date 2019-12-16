@@ -64,7 +64,7 @@
             /* --------------- APPLICATION GLOBALS ---------------- */
 static  OS_TCB       AppTaskStartTCB;
 static  CPU_STK      AppTaskStartStk[APP_CFG_TASK_START_STK_SIZE];
-uint8_t k;
+uint32_t k;
 
 /*
 *********************************************************************************************************
@@ -101,6 +101,9 @@ void BSP_LEDrefresh(uint8_t k)
 
     GPIOD->BSRR = bsrr_mask;
 }
+
+// CPU_INT08U prio(CPU_INT16U key_state);
+
 
 int main(void)
 {
@@ -157,14 +160,16 @@ static  void  AppTaskStart (void *p_arg)
     BSP_LED_Off(0u);
     BSP_SEGMENT_Off ();
     k=1;
+    uint16_t key_state;
     while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
         // BSP_LED_Toggle(0u);
         // BSP_SEGMENT_On(k++,0xf2);
-        if (k == 16) k=1; else k++;
-        BSP_LEDrefresh(k);
-        OSTimeDlyHMSM(0u, 0u, 1u, 0u,
+        key_state = BSP_KeyMat_read();
+        if (k == 64) k=1; else k++;
+        // BSP_LEDrefresh(k);
+        BSP_DotMat_write(1 << (k % 8), k / 8);
+        OSTimeDlyHMSM(0u, 0u, 0u, 50u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
     }
 }
-

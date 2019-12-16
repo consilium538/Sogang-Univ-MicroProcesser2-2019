@@ -86,8 +86,29 @@
 #define  BSP_GPIOD_K3                           DEF_BIT_03
 #define  BSP_GPIOB_K4                           DEF_BIT_04
 #define  BSP_GPIOB_K5                           DEF_BIT_05
-#define  BSP_GPIOB_K6                           DEF_BIT_06
-#define  BSP_GPIOB_K7                           DEF_BIT_07
+#define  BSP_GPIOB_K6                           DEF_BIT_07
+#define  BSP_GPIOB_K7                           DEF_BIT_08
+
+#define  BSP_GPIOD_KEYMASK                      0x0F
+// BSP_GPIOD_K0 | BSP_GPIOD_K1 | BSP_GPIOD_K2 | BSP_GPIOD_K3
+
+#define BSP_GPIOE_LED_ROW1                      DEF_BIT_07 // PE07
+#define BSP_GPIOE_LED_ROW2                      DEF_BIT_08 // PE08
+#define BSP_GPIOE_LED_ROW3                      DEF_BIT_09 // PE09
+#define BSP_GPIOE_LED_ROW4                      DEF_BIT_10 // PE10
+#define BSP_GPIOE_LED_ROW5                      DEF_BIT_11 // PE11
+#define BSP_GPIOE_LED_ROW6                      DEF_BIT_12 // PE12
+#define BSP_GPIOE_LED_ROW7                      DEF_BIT_13 // PE13
+#define BSP_GPIOE_LED_ROW8                      DEF_BIT_14 // PE14
+
+#define BSP_GPIOB_LED_COL1                      DEF_BIT_12 // PB12
+#define BSP_GPIOB_LED_COL2                      DEF_BIT_13 // PB13
+#define BSP_GPIOB_LED_COL3                      DEF_BIT_14 // PB14
+#define BSP_GPIOB_LED_COL4                      DEF_BIT_15 // PB15
+#define BSP_GPIOD_LED_COL5                      DEF_BIT_08 // PD08
+#define BSP_GPIOD_LED_COL6                      DEF_BIT_09 // PD09
+#define BSP_GPIOD_LED_COL7                      DEF_BIT_10 // PD10
+#define BSP_GPIOD_LED_COL8                      DEF_BIT_11 // PD11
 
 /*
 *********************************************************************************************************
@@ -227,7 +248,9 @@ void  BSP_Init (void)
 
     BSP_LED_Init();                                             /* Init LEDs.                                           */
     BSP_ButtonInit();
-    BSP_SEGMENT_Init();
+    // BSP_SEGMENT_Init();
+    BSP_KeyMat_Init();
+    BSP_DotMat_Init();
     
 #ifdef TRACE_EN                                                 /* See project / compiler preprocessor options.         */
     BSP_CPU_REG_DBGMCU_CR |=  BSP_DBGMCU_CR_TRACE_IOEN_MASK;    /* Enable tracing (see Note #2).                        */
@@ -739,9 +762,15 @@ void  BSP_SEGMENT_Off ()
 
 /*
 *********************************************************************************************************
-*                                           BSP_SEGMENT_Init()
+* Modified part
+*********************************************************************************************************
+*/
+
+/*
+*********************************************************************************************************
+*                                           BSP_KeyMat_Init()
 *
-* Description : Initialize any or all the SEVEN SEGMENT LEDs Installed.
+* Description : Initialize Key matrix gpio.
 *
 * Argument(s) : none.
 *
@@ -761,28 +790,28 @@ void  BSP_SEGMENT_Off ()
 *********************************************************************************************************
 */
 
-static void BSP_KeyMat_Init()
+static void BSP_KeyMat_Init(void)
 {
      GPIO_InitTypeDef      gpio_init;
 
-     // Configure GPIOD
+     // Configure GPIOD output
 
-     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
-     gpio_init.Pull = GPIO_PULLUP;
-     gpio_init.Speed = GPIO_SPEED_HIGH;
-
-     BSP_PeriphEn(BSP_PERIPH_ID_GPIOD);
      gpio_init.Pin = BSP_GPIOD_K0 | BSP_GPIOD_K1 | BSP_GPIOD_K2 | BSP_GPIOD_K3;
-     HAL_GPIO_Init(GPIOD, &gpio_init);
-
-     // Configure GPIOB
-
      gpio_init.Mode = GPIO_MODE_INPUT;
      gpio_init.Pull = GPIO_PULLDOWN;
      gpio_init.Speed = GPIO_SPEED_HIGH;
 
-     BSP_PeriphEn(BSP_PERIPH_ID_GPIOB);
+     BSP_PeriphEn(BSP_PERIPH_ID_GPIOD);
+     HAL_GPIO_Init(GPIOD, &gpio_init);
+
+     // Configure GPIOB input
+
      gpio_init.Pin = BSP_GPIOB_K4 | BSP_GPIOB_K5 | BSP_GPIOB_K6 | BSP_GPIOB_K7;
+     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+     gpio_init.Pull = GPIO_PULLUP;
+     gpio_init.Speed = GPIO_SPEED_HIGH;
+
+     BSP_PeriphEn(BSP_PERIPH_ID_GPIOB);
      HAL_GPIO_Init(GPIOB, &gpio_init);
 }
 
@@ -802,7 +831,149 @@ static void BSP_KeyMat_Init()
 *********************************************************************************************************
 */
 
-uint16_t BSP_KeyMat_Init (void)
+CPU_INT16U BSP_KeyMat_read(void)
 {
-     return 0u;
+     CPU_INT16U key_state = 0;
+
+     GPIOB->BSRR = BSP_GPIOB_K4 | BSP_GPIOB_K7 << 16;
+     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK);
+     GPIOB->BSRR = BSP_GPIOB_K5 | BSP_GPIOB_K4 << 16;
+     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK) << 4;
+     GPIOB->BSRR = BSP_GPIOB_K6 | BSP_GPIOB_K5 << 16;
+     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK) << 8;
+     GPIOB->BSRR = BSP_GPIOB_K7 | BSP_GPIOB_K6 << 16;
+     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK) << 12;
+     GPIOB->BSRR = BSP_GPIOB_K7 << 16;
+     return key_state;
+}
+
+
+/*
+*********************************************************************************************************
+*                                           BSP_DotMat_Init()
+*
+* Description : Initialize Dot matrix gpio.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*
+* Caller(s)   : Application.
+*
+* Note(s)     : 
+LED_ROW1 PE07
+LED_ROW2 PE08
+LED_ROW3 PE09
+LED_ROW4 PE10
+LED_ROW5 PE11
+LED_ROW6 PE12
+LED_ROW7 PE13
+LED_ROW8 PE14
+
+LED_COL1 PB12
+LED_COL2 PB13
+LED_COL3 PB14
+LED_COL4 PB15
+LED_COL5 PD08
+LED_COL6 PD09
+LED_COL7 PD10
+LED_COL8 PD11
+*********************************************************************************************************
+*/
+
+static void BSP_DotMat_Init(void)
+{
+     GPIO_InitTypeDef      gpio_init;
+
+     // Row initialize, Pull-up& Pull-down
+     // Configure GPIOE output
+
+     gpio_init.Pin = BSP_GPIOE_LED_ROW1 | BSP_GPIOE_LED_ROW2 | \
+                     BSP_GPIOE_LED_ROW3 | BSP_GPIOE_LED_ROW4 | \
+                     BSP_GPIOE_LED_ROW5 | BSP_GPIOE_LED_ROW6 | \
+                     BSP_GPIOE_LED_ROW7 | BSP_GPIOE_LED_ROW8;
+     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+     gpio_init.Pull = GPIO_PULLUP;
+     gpio_init.Speed = GPIO_SPEED_HIGH;
+
+     BSP_PeriphEn(BSP_PERIPH_ID_GPIOE);
+     HAL_GPIO_Init(GPIOE, &gpio_init);
+
+     // Column initialize, Open drain
+     // Configure GPIOB input
+
+     gpio_init.Pin = BSP_GPIOB_LED_COL1 | BSP_GPIOB_LED_COL2 | \
+                     BSP_GPIOB_LED_COL3 | BSP_GPIOB_LED_COL4;
+     gpio_init.Mode = GPIO_MODE_OUTPUT_OD;
+     gpio_init.Pull = GPIO_NOPULL;
+     gpio_init.Speed = GPIO_SPEED_HIGH;
+
+     BSP_PeriphEn(BSP_PERIPH_ID_GPIOB);
+     HAL_GPIO_Init(GPIOB, &gpio_init);
+
+     // Configure GPIOD input
+
+     gpio_init.Pin = BSP_GPIOD_LED_COL5 | BSP_GPIOD_LED_COL6 | \
+                     BSP_GPIOD_LED_COL7 | BSP_GPIOD_LED_COL8;
+     gpio_init.Mode = GPIO_MODE_OUTPUT_OD;
+     gpio_init.Pull = GPIO_NOPULL;
+     gpio_init.Speed = GPIO_SPEED_HIGH;
+
+     BSP_PeriphEn(BSP_PERIPH_ID_GPIOD);
+     HAL_GPIO_Init(GPIOD, &gpio_init);
+}
+
+/*
+*********************************************************************************************************
+*                                             BSP_SEGMET_On()
+*
+* Description : Turn ON any or all the LEDS in the SEGMENT specified by com
+*
+* Argument(s) : none.
+*
+* Return(s)   : Key matrix status, x bit set means button x is pressed
+*
+* Caller(s)   : Application.
+*
+* Note(s)     : none.
+*********************************************************************************************************
+*/
+
+void BSP_DotMat_write(CPU_INT08U rowdata, CPU_INT08U colnum)
+{
+     GPIOB->BSRR = (BSP_GPIOB_LED_COL1 | BSP_GPIOB_LED_COL2 | \
+                     BSP_GPIOB_LED_COL3 | BSP_GPIOB_LED_COL4);
+     GPIOD->BSRR = (BSP_GPIOD_LED_COL5 | BSP_GPIOD_LED_COL6 | \
+                     BSP_GPIOD_LED_COL7 | BSP_GPIOD_LED_COL8);
+     switch(colnum)
+     {
+          case 0:
+               GPIOB->BSRR = BSP_GPIOB_LED_COL1 << 16;
+               break;
+          case 1:
+               GPIOB->BSRR = BSP_GPIOB_LED_COL2 << 16;
+               break;
+          case 2:
+               GPIOB->BSRR = BSP_GPIOB_LED_COL3 << 16;
+               break;
+          case 3:
+               GPIOB->BSRR = BSP_GPIOB_LED_COL4 << 16;
+               break;
+          case 4:
+               GPIOD->BSRR = BSP_GPIOD_LED_COL5 << 16;
+               break;
+          case 5:
+               GPIOD->BSRR = BSP_GPIOD_LED_COL6 << 16;
+               break;
+          case 6:
+               GPIOD->BSRR = BSP_GPIOD_LED_COL7 << 16;
+               break;
+          case 7:
+               GPIOD->BSRR = BSP_GPIOD_LED_COL8 << 16;
+               break;
+          default:
+               break;
+     }
+     GPIOE->BSRR = rowdata << 7 | ~rowdata << (7 + 16);
+     return;
 }
