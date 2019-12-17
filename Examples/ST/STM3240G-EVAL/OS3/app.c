@@ -156,22 +156,22 @@ static  void  AppTaskStart (void *p_arg)
     // for test
     uint32_t framecount = 0;
     uint64_t test_frame[] = {
-        0x182462524a462418,
-        0x7c10101010141810,
-        0x7e0418204042423c,
-        0x003c42201820423c,
-        0x1010107e12141810,
-        0x1e2020201e02023e,
-        0x1c22223e0202221c,
-        0x202020202022223e,
-        0x1c22221c2222221c,
-        0x1c22203c2222221c,
-        0x0008183878381808,
-        0x007e7e7e7e7e7e00,
-        0x3c66c39999db5a18,
-        0x0002ffffc2c0c000,
-        0xe020f827390f3907,
-        0x7e7e7e7e7e242418
+        0x182462524a462418, // 0
+        0x7c10101010141810, // 1
+        0x7e0418204042423c, // 2
+        0x003c42201820423c, // 3
+        0x1010107e12141810, // 4
+        0x1e2020201e02023e, // 5
+        0x1c22223e0202221c, // 6
+        0x202020202022223e, // 7
+        0x1c22221c2222221c, // 8
+        0x1c22203c2222221c, // 9
+        0x0008183878381808, // go
+        0x007e7e7e7e7e7e00, // st
+        0x3c66c39999db5a18, // boot
+        0x0002ffffc2c0c000, // ent
+        0xe020f827390f3907, // esc
+        0x7e7e7e7e7e242418  // lock
     };
 
     BSP_Init();                                                 /* Initialize BSP functions                             */
@@ -287,8 +287,12 @@ static void KeyEventTask(void *p_arg)
     (void)p_arg;
 
     uint16_t key_state;
-    uint8_t key_log[16] = {0};
+    uint32_t key_log[16] = {0};
     CPU_BOOLEAN key_priv[16] = {0};
+    /* st, go, lock, boot, 3, 6, 9, esc, 2, 5, 8, 0, 1, 4, 7, ent */
+    const uint8_t key_cross[] = {
+        11, 10, 15, 12, 3, 6, 9, 14, 2, 5, 8, 0, 1, 4, 7, 13
+    };
     uint32_t tmp;
 
     while(DEF_TRUE)
@@ -302,7 +306,7 @@ static void KeyEventTask(void *p_arg)
                 key_priv[i] = DEF_TRUE;
                 OSQPost(
                     (OS_Q *)&KeyPressEvent_Q,
-                    (void *)i+1,
+                    (void *)(key_cross[i]+1),
                     (OS_MSG_SIZE) sizeof(uint16_t),
                     (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_ALL,
                     (OS_ERR *) &err
