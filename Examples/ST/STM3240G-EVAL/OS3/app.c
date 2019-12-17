@@ -55,13 +55,11 @@
 #include  <app_cfg.h>
 #include  <bsp.h>
 
-
 /*
 *********************************************************************************************************
-*                                       LOCAL GLOBAL VARIABLES
+*                                       DEFINE AND TYPEDEF
 *********************************************************************************************************
 */
-            /* --------------- APPLICATION GLOBALS ---------------- */
 
 #define LP_TH 5
 
@@ -70,6 +68,12 @@ typedef union _dot_t
     uint64_t i;
     uint8_t v[8];
 } dot_t;
+
+/*
+*********************************************************************************************************
+*                                       LOCAL GLOBAL VARIABLES
+*********************************************************************************************************
+*/
 
 static OS_TCB AppTaskStartTCB;
 static CPU_STK AppTaskStartStk[APP_CFG_TASK_START_STK_SIZE];
@@ -224,11 +228,6 @@ static  void  AppTaskStart (void *p_arg)
     framecount = 0;
 
     while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
-
-        /* key_state = BSP_KeyMat_read();
-        dot_buf.i = test_frame[framecount % 16];
-        framecount++; */
-
         uint32_t keyevent = (uint32_t)OSQPend(
             (OS_Q *)&KeyPressEvent_Q,
             (OS_TICK)0,
@@ -237,6 +236,7 @@ static  void  AppTaskStart (void *p_arg)
             (CPU_TS *)&ts,
             (OS_ERR *)err
         );
+
         if(keyevent)
         {
             dot_buf.i = test_frame[keyevent - 1];
@@ -267,19 +267,6 @@ static  void  AppTaskStart (void *p_arg)
                       &err);
     }
 }
-
-/* static void KeyEventTask(void *p_arg)
-{
-    OS_ERR err;
-    (void)p_arg;
-
-    uint16_t key_state;
-
-    while(DEF_TRUE)
-    {
-        key_state = BSP_KeyMat_read();
-    }
-} */
 
 static void KeyEventTask(void *p_arg)
 {
@@ -320,13 +307,6 @@ static void KeyEventTask(void *p_arg)
         }
         tmp = __builtin_popcount(key_log[11]);
         
-        /* OSQPost(
-            (OS_Q *)&KeyPressEvent_Q,
-            (void *)key_state,
-            (OS_MSG_SIZE) sizeof(uint16_t),
-            (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
-            (OS_ERR *) &err
-        ); */
         OSTimeDlyHMSM(0u, 0u, 0u, 10u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);

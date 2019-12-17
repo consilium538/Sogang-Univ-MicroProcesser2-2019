@@ -835,20 +835,6 @@ CPU_INT16U BSP_KeyMat_read(void)
 {
      CPU_INT16U key_state = 0;
      uint8_t i;
-     CPU_SR_ALLOC();
-
-	// while(DEF_FALSE){for(i=0;i<25;i++){}for(i=0;i<7;i++){}}
-     /* OS_CRITICAL_ENTER();
-     GPIOB->BSRR = BSP_GPIOB_K4 | BSP_GPIOB_K7 << 16;
-     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK);
-     GPIOB->BSRR = BSP_GPIOB_K5 | BSP_GPIOB_K4 << 16;
-     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK) << 4;
-     GPIOB->BSRR = BSP_GPIOB_K6 | BSP_GPIOB_K5 << 16;
-     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK) << 8;
-     GPIOB->BSRR = BSP_GPIOB_K7 | BSP_GPIOB_K6 << 16;
-     key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK) << 12;
-     GPIOB->BSRR = BSP_GPIOB_K7 << 16;
-     OS_CRITICAL_EXIT(); */
      
      HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K5 |BSP_GPIOB_K6 |BSP_GPIOB_K7, GPIO_PIN_RESET);
      HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K4, GPIO_PIN_SET);
