@@ -63,11 +63,26 @@
 
 #define LP_TH 5
 
+#define KEY_UP 2
+#define KEY_DOWN 10
+#define KEY_LEFT 5
+#define KEY_RIGHT 7
+#define KEY_CLICK 6
+#define KEY_OMIT 13
+
 typedef union _dot_t
 {
     uint64_t i;
     uint8_t v[8];
 } dot_t;
+
+typedef struct _dot_state
+{
+    uint64_t port;
+    uint8_t x;
+    uint8_t y;
+    CPU_BOOLEAN show;
+} dot_state_t;
 
 /*
 *********************************************************************************************************
@@ -87,8 +102,9 @@ static CPU_STK KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_Q KeyPressEvent_Q;
 static OS_Q DotMatRefresh_Q;
 
-uint32_t k;
 dot_t dot_buf;
+dot_state_t dot_state;
+CPU_BOOLEAN blink;
 
 /*
 *********************************************************************************************************
@@ -155,10 +171,8 @@ static  void  AppTaskStart (void *p_arg)
     uint16_t key_state;
     OS_MSG_SIZE  msg_size;
     CPU_TS ts;
-    uint16_t keyevent;
+    uint32_t keyevent;
 
-    // for test
-    uint32_t framecount = 0;
     uint64_t test_frame[] = {
         0x182462524a462418, // 0
         0x7c10101010141810, // 1
@@ -197,48 +211,63 @@ static  void  AppTaskStart (void *p_arg)
         (OS_ERR *)&err
     );
 
-    OSTaskCreate(&DotMatRefreshTaskTCB,
-                  "DotMat Task",
-                  DotMatRefreshTask,
-                  0u,
-                  5u,
-                 &DotMatRefreshTaskStk[0u],
-                  DotMatRefreshTaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
-                  APP_CFG_TASK_START_STK_SIZE,
-                  0u,
-                  0u,
-                  0u,
-                 (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                 &err);
+    OSTaskCreate(
+        &DotMatRefreshTaskTCB,
+        "DotMat Task",
+        DotMatRefreshTask,
+        0u,
+        5u,
+        &DotMatRefreshTaskStk[0u],
+        DotMatRefreshTaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
+        APP_CFG_TASK_START_STK_SIZE,
+        0u,
+        0u,
+        0u,
+        (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+        &err
+    );
 
-    OSTaskCreate(&KeyEventTaskTCB,
-                  "KeyEvent Task",
-                  KeyEventTask,
-                  0u,
-                  4u,
-                 &KeyEventTaskStk[0u],
-                  KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
-                  APP_CFG_TASK_START_STK_SIZE,
-                  0u,
-                  0u,
-                  0u,
-                 (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                 &err);
-
-    framecount = 0;
+    OSTaskCreate(
+        &KeyEventTaskTCB,
+        "KeyEvent Task",
+        KeyEventTask,
+        0u,
+        4u,
+        &KeyEventTaskStk[0u],
+        KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
+        APP_CFG_TASK_START_STK_SIZE,
+        0u,
+        0u,
+        0u,
+        (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+        &err
+    );
+    dot_state.port = 0;
+    dot_state.x = 0;
+    dot_state.y = 0;
+    dot_state.show = DEF_FALSE;
 
     while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
-        uint32_t keyevent = (uint32_t)OSQPend(
+        while(keyevent = (uint32_t)OSQPend(
             (OS_Q *)&KeyPressEvent_Q,
             (OS_TICK)0,
             (OS_OPT)(OS_OPT_PEND_BLOCKING),
             (OS_MSG_SIZE *)&msg_size,
             (CPU_TS *)&ts,
             (OS_ERR *)err
-        );
-
-        if(keyevent)
+        ))
         {
+            if(keyevent == KEY_OMIT) dot_state.show = !dot_state.show;
+            if(!dot_state.show)
+            {
+                if(keyevent == KEY_DOWN) dot_state.y = (dot_state.y == 7) ? 7 : dot_state.y + 1;
+                else if(keyevent == KEY_UP) dot_state.y = (dot_state.y == 0) ? 0 : dot_state.y - 1;
+                else if(keyevent == KEY_RIGHT) dot_state.x = (dot_state.x == 7) ? 7 : dot_state.x + 1;
+                else if(keyevent == KEY_LEFT) dot_state.x = (dot_state.x == 0) ? 0 : dot_state.x - 1;
+                else if(keyevent == KEY_CLICK)
+                    dot_state.port ^= 1 << (dot_state.x * 8 + dot_state.y);
+            }
+        }
             dot_buf.i = test_frame[keyevent - 1];
             OSQPost(
                 (OS_Q *)&DotMatRefresh_Q,
@@ -261,7 +290,7 @@ static  void  AppTaskStart (void *p_arg)
             OSTimeDlyHMSM(0u, 0u, 0u, 500u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
-        }
+
         OSTimeDlyHMSM(0u, 0u, 0u, 10u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
