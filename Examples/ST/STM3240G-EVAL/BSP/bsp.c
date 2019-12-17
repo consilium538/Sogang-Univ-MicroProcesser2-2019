@@ -799,7 +799,7 @@ static void BSP_KeyMat_Init(void)
      gpio_init.Pin = BSP_GPIOD_K0 | BSP_GPIOD_K1 | BSP_GPIOD_K2 | BSP_GPIOD_K3;
      gpio_init.Mode = GPIO_MODE_INPUT;
      gpio_init.Pull = GPIO_PULLDOWN;
-     gpio_init.Speed = GPIO_SPEED_HIGH;
+     gpio_init.Speed = GPIO_SPEED_MEDIUM;
 
      BSP_PeriphEn(BSP_PERIPH_ID_GPIOD);
      HAL_GPIO_Init(GPIOD, &gpio_init);
@@ -808,8 +808,8 @@ static void BSP_KeyMat_Init(void)
 
      gpio_init.Pin = BSP_GPIOB_K4 | BSP_GPIOB_K5 | BSP_GPIOB_K6 | BSP_GPIOB_K7;
      gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
-     gpio_init.Pull = GPIO_PULLUP;
-     gpio_init.Speed = GPIO_SPEED_HIGH;
+     gpio_init.Pull = GPIO_NOPULL;
+     gpio_init.Speed = GPIO_SPEED_MEDIUM;
 
      BSP_PeriphEn(BSP_PERIPH_ID_GPIOB);
      HAL_GPIO_Init(GPIOB, &gpio_init);
@@ -834,7 +834,11 @@ static void BSP_KeyMat_Init(void)
 CPU_INT16U BSP_KeyMat_read(void)
 {
      CPU_INT16U key_state = 0;
+     uint8_t i;
+     CPU_SR_ALLOC();
 
+	// while(DEF_FALSE){for(i=0;i<25;i++){}for(i=0;i<7;i++){}}
+     /* OS_CRITICAL_ENTER();
      GPIOB->BSRR = BSP_GPIOB_K4 | BSP_GPIOB_K7 << 16;
      key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK);
      GPIOB->BSRR = BSP_GPIOB_K5 | BSP_GPIOB_K4 << 16;
@@ -844,6 +848,38 @@ CPU_INT16U BSP_KeyMat_read(void)
      GPIOB->BSRR = BSP_GPIOB_K7 | BSP_GPIOB_K6 << 16;
      key_state |= (GPIOD->IDR & BSP_GPIOD_KEYMASK) << 12;
      GPIOB->BSRR = BSP_GPIOB_K7 << 16;
+     OS_CRITICAL_EXIT(); */
+     
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K5 |BSP_GPIOB_K6 |BSP_GPIOB_K7, GPIO_PIN_RESET);
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K4, GPIO_PIN_SET);
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K0) ? 1 : 0) << 0;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K1) ? 1 : 0) << 1;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K2) ? 1 : 0) << 2;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K3) ? 1 : 0) << 3;
+     
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K4 |BSP_GPIOB_K6 |BSP_GPIOB_K7, GPIO_PIN_RESET);
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K5, GPIO_PIN_SET);
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K0) ? 1 : 0) << 4;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K1) ? 1 : 0) << 5;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K2) ? 1 : 0) << 6;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K3) ? 1 : 0) << 7;
+     
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K4 |BSP_GPIOB_K5 |BSP_GPIOB_K7, GPIO_PIN_RESET);
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K6, GPIO_PIN_SET);
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K0) ? 1 : 0) << 8;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K1) ? 1 : 0) << 9;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K2) ? 1 : 0) << 10;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K3) ? 1 : 0) << 11;
+     
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K4 |BSP_GPIOB_K5 |BSP_GPIOB_K6, GPIO_PIN_RESET);
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K7, GPIO_PIN_SET);
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K0) ? 1 : 0) << 12;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K1) ? 1 : 0) << 13;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K2) ? 1 : 0) << 14;
+     key_state |= (HAL_GPIO_ReadPin(GPIOD, BSP_GPIOD_K3) ? 1 : 0) << 15;
+
+     HAL_GPIO_WritePin(GPIOB, BSP_GPIOB_K4 |BSP_GPIOB_K5 |BSP_GPIOB_K6 |BSP_GPIOB_K7, GPIO_PIN_RESET);
+
      return key_state;
 }
 
@@ -904,7 +940,7 @@ static void BSP_DotMat_Init(void)
 
      gpio_init.Pin = BSP_GPIOB_LED_COL1 | BSP_GPIOB_LED_COL2 | \
                      BSP_GPIOB_LED_COL3 | BSP_GPIOB_LED_COL4;
-     gpio_init.Mode = GPIO_MODE_OUTPUT_OD;
+     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
      gpio_init.Pull = GPIO_NOPULL;
      gpio_init.Speed = GPIO_SPEED_HIGH;
 
@@ -915,7 +951,7 @@ static void BSP_DotMat_Init(void)
 
      gpio_init.Pin = BSP_GPIOD_LED_COL5 | BSP_GPIOD_LED_COL6 | \
                      BSP_GPIOD_LED_COL7 | BSP_GPIOD_LED_COL8;
-     gpio_init.Mode = GPIO_MODE_OUTPUT_OD;
+     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
      gpio_init.Pull = GPIO_NOPULL;
      gpio_init.Speed = GPIO_SPEED_HIGH;
 
