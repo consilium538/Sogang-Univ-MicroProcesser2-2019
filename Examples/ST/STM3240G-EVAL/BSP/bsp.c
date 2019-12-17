@@ -983,28 +983,28 @@ void BSP_DotMat_write(CPU_INT08U rowdata, CPU_INT08U colnum)
                      BSP_GPIOD_LED_COL7 | BSP_GPIOD_LED_COL8);
      switch(colnum)
      {
-          case 0:
+          case 7:
                GPIOB->BSRR = BSP_GPIOB_LED_COL1 << 16;
                break;
-          case 1:
+          case 6:
                GPIOB->BSRR = BSP_GPIOB_LED_COL2 << 16;
                break;
-          case 2:
+          case 5:
                GPIOB->BSRR = BSP_GPIOB_LED_COL3 << 16;
                break;
-          case 3:
+          case 4:
                GPIOB->BSRR = BSP_GPIOB_LED_COL4 << 16;
                break;
-          case 4:
+          case 3:
                GPIOD->BSRR = BSP_GPIOD_LED_COL5 << 16;
                break;
-          case 5:
+          case 2:
                GPIOD->BSRR = BSP_GPIOD_LED_COL6 << 16;
                break;
-          case 6:
+          case 1:
                GPIOD->BSRR = BSP_GPIOD_LED_COL7 << 16;
                break;
-          case 7:
+          case 0:
                GPIOD->BSRR = BSP_GPIOD_LED_COL8 << 16;
                break;
           default:

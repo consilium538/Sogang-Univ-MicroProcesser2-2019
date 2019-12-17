@@ -63,20 +63,25 @@
 */
             /* --------------- APPLICATION GLOBALS ---------------- */
 
+#define LP_TH 5
+
 typedef union _dot_t
 {
     uint64_t i;
     uint8_t v[8];
 } dot_t;
 
-static  OS_TCB       AppTaskStartTCB;
-static  CPU_STK      AppTaskStartStk[APP_CFG_TASK_START_STK_SIZE];
+static OS_TCB AppTaskStartTCB;
+static CPU_STK AppTaskStartStk[APP_CFG_TASK_START_STK_SIZE];
 
-static  OS_TCB       DotMatRefreshTaskTCB;
-static  CPU_STK      DotMatRefreshTaskStk[APP_CFG_TASK_START_STK_SIZE];
+static OS_TCB DotMatRefreshTaskTCB;
+static CPU_STK DotMatRefreshTaskStk[APP_CFG_TASK_START_STK_SIZE];
 
-static  OS_Q         KeyPressEvent_Q;
-static  OS_Q         DotMatRefresh_Q;
+static OS_TCB KeyEventTaskTCB;
+static CPU_STK KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE];
+
+static OS_Q KeyPressEvent_Q;
+static OS_Q DotMatRefresh_Q;
 
 uint32_t k;
 dot_t dot_buf;
@@ -87,8 +92,9 @@ dot_t dot_buf;
 *********************************************************************************************************
 */
 
-static  void  AppTaskStart (void  *p_arg);
+static void AppTaskStart(void  *p_arg);
 static void DotMatRefreshTask(void *p_arg);
+static void KeyEventTask(void *p_arg);
 
 /*
 *********************************************************************************************************
@@ -147,10 +153,21 @@ static  void  AppTaskStart (void *p_arg)
     // for test
     uint32_t framecount = 0;
     uint64_t test_frame[] = {
-        0xf173371ff8ecce8f,
-        0x783937dffbec9c1e,
-        0x3c389bffffd91c3c,
-        0x8fceecf81f3773f1
+        0x182462524a462418,
+        0x7c10101010141810,
+        0x7e0418204042423c,
+        0x003c42201820423c,
+        0x1010107e12141810,
+        0x1e2020201e02023e,
+        0x1c22223e0202221c,
+        0x202020202022223e,
+        0x1c22221c2222221c,
+        0x1c22203c2222221c,
+        0x0008183878381808,
+        0x007e7e7e7e7e7e00,
+        0x3c66c39999db5a18,
+        0x0002ffffc2c0c000,
+        0xe020f827390f3907
     };
 
     BSP_Init();                                                 /* Initialize BSP functions                             */
@@ -158,12 +175,12 @@ static  void  AppTaskStart (void *p_arg)
     
     BSP_LED_Off(0u);
 
-    /* OSQCreate(
+    OSQCreate(
         (OS_Q *)&KeyPressEvent_Q,
         (CPU_CHAR *)"KeyPressEvent",
         (OS_MSG_QTY)32,
         (OS_ERR *)&err
-    ); */
+    );
 
     OSQCreate(
         (OS_Q *)&DotMatRefresh_Q,
@@ -186,12 +203,26 @@ static  void  AppTaskStart (void *p_arg)
                  (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
                  &err);
 
+    /* OSTaskCreate(&KeyEventTaskTCB,
+                  "DotMat Task",
+                  KeyEventTask,
+                  0u,
+                  4u,
+                 &KeyEventTaskStk[0u],
+                  KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
+                  APP_CFG_TASK_START_STK_SIZE,
+                  0u,
+                  0u,
+                  0u,
+                 (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+                 &err); */
+
     framecount = 0;
 
     while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
 
         key_state = BSP_KeyMat_read();
-        dot_buf.i = test_frame[framecount % 4];
+        dot_buf.i = test_frame[framecount % 16];
         framecount++;
         // BSP_DotMat_write(key_slice, k);
         OSQPost(
@@ -201,7 +232,7 @@ static  void  AppTaskStart (void *p_arg)
             (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
             (OS_ERR *) &err
         );
-        
+
         OSTimeDlyHMSM(0u, 0u, 0u, 100u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
@@ -220,6 +251,43 @@ static  void  AppTaskStart (void *p_arg)
         key_state = BSP_KeyMat_read();
     }
 } */
+
+static void KeyEventTask(void *p_arg)
+{
+    OS_ERR err;
+    (void)p_arg;
+
+    uint16_t key_state;
+    uint8_t key_log[16];
+
+    while(DEF_TRUE)
+    {
+        key_state = BSP_KeyMat_read();
+        for(int i = 0; i < 16; i++)
+        {
+            key_log[i] = (key_log[i] << 1) | ((key_state&(1<<i))?1:0);
+            if(__builtin_popcount(key_log[i]) > LP_TH)
+                OSQPost(
+                    (OS_Q *)&KeyPressEvent_Q,
+                    (void *)i+1,
+                    (OS_MSG_SIZE) sizeof(uint16_t),
+                    (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+                    (OS_ERR *) &err
+                );
+        }
+        
+        /* OSQPost(
+            (OS_Q *)&KeyPressEvent_Q,
+            (void *)key_state,
+            (OS_MSG_SIZE) sizeof(uint16_t),
+            (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+            (OS_ERR *) &err
+        ); */
+        OSTimeDlyHMSM(0u, 0u, 0u, 10u,
+                      OS_OPT_TIME_HMSM_STRICT,
+                      &err);
+    }
+}
 
 static void DotMatRefreshTask(void *p_arg)
 {
