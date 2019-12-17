@@ -149,6 +149,9 @@ static  void  AppTaskStart (void *p_arg)
     (void)p_arg;
 
     uint16_t key_state;
+    OS_MSG_SIZE  msg_size;
+    CPU_TS ts;
+    uint16_t keyevent;
 
     // for test
     uint32_t framecount = 0;
@@ -167,7 +170,8 @@ static  void  AppTaskStart (void *p_arg)
         0x007e7e7e7e7e7e00,
         0x3c66c39999db5a18,
         0x0002ffffc2c0c000,
-        0xe020f827390f3907
+        0xe020f827390f3907,
+        0x7e7e7e7e7e242418
     };
 
     BSP_Init();                                                 /* Initialize BSP functions                             */
@@ -203,8 +207,8 @@ static  void  AppTaskStart (void *p_arg)
                  (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
                  &err);
 
-    /* OSTaskCreate(&KeyEventTaskTCB,
-                  "DotMat Task",
+    OSTaskCreate(&KeyEventTaskTCB,
+                  "KeyEvent Task",
                   KeyEventTask,
                   0u,
                   4u,
@@ -215,25 +219,50 @@ static  void  AppTaskStart (void *p_arg)
                   0u,
                   0u,
                  (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                 &err); */
+                 &err);
 
     framecount = 0;
 
     while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
 
-        key_state = BSP_KeyMat_read();
+        /* key_state = BSP_KeyMat_read();
         dot_buf.i = test_frame[framecount % 16];
-        framecount++;
-        // BSP_DotMat_write(key_slice, k);
-        OSQPost(
-            (OS_Q *)&DotMatRefresh_Q,
-            (void *)&dot_buf,
-            (OS_MSG_SIZE) sizeof(dot_t),
-            (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
-            (OS_ERR *) &err
-        );
+        framecount++; */
 
-        OSTimeDlyHMSM(0u, 0u, 0u, 100u,
+        uint32_t keyevent = (uint32_t)OSQPend(
+            (OS_Q *)&KeyPressEvent_Q,
+            (OS_TICK)0,
+            (OS_OPT)(OS_OPT_PEND_BLOCKING),
+            (OS_MSG_SIZE *)&msg_size,
+            (CPU_TS *)&ts,
+            (OS_ERR *)err
+        );
+        if(keyevent)
+        {
+            dot_buf.i = test_frame[keyevent - 1];
+            OSQPost(
+                (OS_Q *)&DotMatRefresh_Q,
+                (void *)&dot_buf,
+                (OS_MSG_SIZE) sizeof(dot_t),
+                (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+                (OS_ERR *) &err
+            );
+            OSTimeDlyHMSM(0u, 0u, 0u, 500u,
+                      OS_OPT_TIME_HMSM_STRICT,
+                      &err);
+            dot_buf.i = 0;
+            OSQPost(
+                (OS_Q *)&DotMatRefresh_Q,
+                (void *)&dot_buf,
+                (OS_MSG_SIZE) sizeof(dot_t),
+                (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+                (OS_ERR *) &err
+            );
+            OSTimeDlyHMSM(0u, 0u, 0u, 500u,
+                      OS_OPT_TIME_HMSM_STRICT,
+                      &err);
+        }
+        OSTimeDlyHMSM(0u, 0u, 0u, 10u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
     }
@@ -258,23 +287,34 @@ static void KeyEventTask(void *p_arg)
     (void)p_arg;
 
     uint16_t key_state;
-    uint8_t key_log[16];
+    uint8_t key_log[16] = {0};
+    CPU_BOOLEAN key_priv[16] = {0};
+    uint32_t tmp;
 
     while(DEF_TRUE)
     {
         key_state = BSP_KeyMat_read();
-        for(int i = 0; i < 16; i++)
+        for(uint32_t i = 0; i < 16; i++)
         {
             key_log[i] = (key_log[i] << 1) | ((key_state&(1<<i))?1:0);
-            if(__builtin_popcount(key_log[i]) > LP_TH)
+            if((__builtin_popcount(key_log[i]) > LP_TH) && !key_priv[i])
+            {
+                key_priv[i] = DEF_TRUE;
                 OSQPost(
                     (OS_Q *)&KeyPressEvent_Q,
                     (void *)i+1,
                     (OS_MSG_SIZE) sizeof(uint16_t),
-                    (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+                    (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_ALL,
                     (OS_ERR *) &err
                 );
+            }
+            else if((__builtin_popcount(key_log[i]) < LP_TH) && key_priv[i]) key_priv[i] = DEF_FALSE;
+            else
+            {
+                __NOP();
+            }
         }
+        tmp = __builtin_popcount(key_log[11]);
         
         /* OSQPost(
             (OS_Q *)&KeyPressEvent_Q,
