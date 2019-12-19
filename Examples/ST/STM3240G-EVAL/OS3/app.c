@@ -99,8 +99,8 @@ static CPU_STK DotMatRefreshTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_TCB KeyEventTaskTCB;
 static CPU_STK KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE];
 
-// static OS_TCB Level1TaskTCB;
-// static CPU_STK Level1TaskStk[APP_CFG_TASK_START_STK_SIZE];
+static OS_TCB Level1TaskTCB;
+static CPU_STK Level1TaskStk[APP_CFG_TASK_START_STK_SIZE];
 
 static OS_TCB Level2TaskTCB;
 static CPU_STK Level2TaskStk[APP_CFG_TASK_START_STK_SIZE];
@@ -123,8 +123,8 @@ CPU_BOOLEAN blink;
 static void AppTaskStart(void  *p_arg);
 static void DotMatRefreshTask(void *p_arg);
 static void KeyEventTask(void *p_arg);
-// static void Level1Task(void *p_arg);
-// static void Level2Task(void *p_arg);
+static void Level1Task(void *p_arg);
+static void Level2Task(void *p_arg);
 
 static void tmr1_callback(void);
 
@@ -256,7 +256,7 @@ static  void  AppTaskStart (void *p_arg)
         &err
     ); */
 
-    /* OSTaskCreate(
+    OSTaskCreate(
         &Level2TaskTCB,
         "KeyEvent Task",
         Level2Task,
@@ -270,78 +270,26 @@ static  void  AppTaskStart (void *p_arg)
         0u,
         (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
         &err
-    ); */
+    );
+
+    OSTmrCreate(
+        (OS_TMR *)&blink_TMR,
+        (CPU_CHAR *)"blink Timer",
+        (OS_TICK) 5,
+        (OS_TICK) 5,
+        (OS_OPT) OS_OPT_TMR_PERIODIC,
+        (OS_TMR_CALLBACK_PTR)  tmr1_callback,
+        (void *)0,
+        (OS_ERR *)&err
+    );
 
     dot_state.port.i = 0;
     dot_state.x = 0;
     dot_state.y = 0;
     dot_state.show = DEF_FALSE;
 
-    OSTmrCreate(
-        (OS_TMR *)&blink_TMR,            /* Pointer to timer     */
-        (CPU_CHAR *)"blink Timer",           /* Name of timer, ASCII */
-        (OS_TICK) 5,              /* Initial delay        */
-        (OS_TICK) 5,           /* Repeat period        */
-        (OS_OPT) OS_OPT_TMR_PERIODIC,              /* Options              */
-        (OS_TMR_CALLBACK_PTR)  tmr1_callback,       /* Fnct to call at 0    */
-        (void *)0,   /* Arg. to callback     */
-        (OS_ERR *)&err
-    );
-
-    OSTmrStart(&blink_TMR, &err);
-
-    while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
-        while(keyevent = (uint32_t)OSQPend(
-            (OS_Q *)&KeyPressEvent_Q,
-            (OS_TICK)0,
-            (OS_OPT)(OS_OPT_PEND_BLOCKING),
-            (OS_MSG_SIZE *)&msg_size,
-            (CPU_TS *)&ts,
-            (OS_ERR *)err
-        ))
-        {
-            if(keyevent == KEY_OMIT) dot_state.show = !dot_state.show;
-            else if(!dot_state.show)
-            {
-                switch(keyevent)
-                {
-                    case KEY_DOWN:
-                        dot_state.y = (dot_state.y == 7) ? 7 : dot_state.y + 1;
-                        break;
-                    case KEY_UP:
-                        dot_state.y = (dot_state.y == 0) ? 0 : dot_state.y - 1;
-                        break;
-                    case KEY_RIGHT:
-                        dot_state.x = (dot_state.x == 7) ? 7 : dot_state.x + 1;
-                        break;
-                    case KEY_LEFT:
-                        dot_state.x = (dot_state.x == 0) ? 0 : dot_state.x - 1;
-                        break;
-                    case KEY_CLICK:
-                        dot_state.port.v[dot_state.x] ^= 1 << dot_state.y;
-                        break;
-                    default:
-                        break;
-                }
-            }
-            OSTmrStart(&blink_TMR, &err);
-        }
-        if(!dot_state.show)
-        {
-            dot_buf.i = dot_state.port.i ^ blink << (dot_state.x * 8 + dot_state.y);
-        }
-        else
-        {
-            dot_buf.i = blink ? dot_state.port.i : 0;
-        }
-        OSQPost(
-            (OS_Q *)&DotMatRefresh_Q,
-            (void *)&dot_buf,
-            (OS_MSG_SIZE) sizeof(dot_t),
-            (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
-            (OS_ERR *) &err
-        );
-        OSTimeDlyHMSM(0u, 0u, 0u, 10u,
+    while (DEF_TRUE) {
+        OSTimeDlyHMSM(0u, 0u, 0u, 100u,
                     OS_OPT_TIME_HMSM_STRICT,
                     &err);
     }
@@ -524,10 +472,10 @@ static void Level2Task(void *p_arg)
                 switch(keyevent)
                 {
                     case KEY_DOWN:
-                        dot_state.y = (dot_state.y == 7) ? 7 : dot_state.y + 1;
+                        dot_state.y = (dot_state.y == 0) ? 0 : dot_state.y - 1;
                         break;
                     case KEY_UP:
-                        dot_state.y = (dot_state.y == 0) ? 0 : dot_state.y - 1;
+                        dot_state.y = (dot_state.y == 7) ? 7 : dot_state.y + 1;
                         break;
                     case KEY_RIGHT:
                         dot_state.x = (dot_state.x == 7) ? 7 : dot_state.x + 1;
@@ -536,7 +484,7 @@ static void Level2Task(void *p_arg)
                         dot_state.x = (dot_state.x == 0) ? 0 : dot_state.x - 1;
                         break;
                     case KEY_CLICK:
-                        dot_state.port.v[dot_state.y] ^= 1 << dot_state.x;
+                        dot_state.port.v[dot_state.x] ^= 1 << dot_state.y;
                         break;
                     default:
                         break;
@@ -546,7 +494,8 @@ static void Level2Task(void *p_arg)
         }
         if(!dot_state.show)
         {
-            dot_buf.i = dot_state.port.i ^ blink << (dot_state.x * 8 + dot_state.y);
+            dot_buf.i = dot_state.port.i;
+            dot_buf.v[dot_state.x] ^= blink << dot_state.y;
         }
         else
         {
