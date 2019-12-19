@@ -63,11 +63,11 @@
 
 #define LP_TH 5
 
-#define KEY_UP 2
-#define KEY_DOWN 10
+#define KEY_UP 3
 #define KEY_LEFT 5
-#define KEY_RIGHT 7
 #define KEY_CLICK 6
+#define KEY_RIGHT 7
+#define KEY_DOWN 9
 #define KEY_OMIT 13
 
 typedef union _dot_t
@@ -78,7 +78,7 @@ typedef union _dot_t
 
 typedef struct _dot_state
 {
-    uint64_t port;
+    dot_t port;
     uint8_t x;
     uint8_t y;
     CPU_BOOLEAN show;
@@ -99,8 +99,16 @@ static CPU_STK DotMatRefreshTaskStk[APP_CFG_TASK_START_STK_SIZE];
 static OS_TCB KeyEventTaskTCB;
 static CPU_STK KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE];
 
+// static OS_TCB Level1TaskTCB;
+// static CPU_STK Level1TaskStk[APP_CFG_TASK_START_STK_SIZE];
+
+static OS_TCB Level2TaskTCB;
+static CPU_STK Level2TaskStk[APP_CFG_TASK_START_STK_SIZE];
+
 static OS_Q KeyPressEvent_Q;
 static OS_Q DotMatRefresh_Q;
+
+static OS_TMR blink_TMR;
 
 dot_t dot_buf;
 dot_state_t dot_state;
@@ -115,6 +123,10 @@ CPU_BOOLEAN blink;
 static void AppTaskStart(void  *p_arg);
 static void DotMatRefreshTask(void *p_arg);
 static void KeyEventTask(void *p_arg);
+// static void Level1Task(void *p_arg);
+// static void Level2Task(void *p_arg);
+
+static void tmr1_callback(void);
 
 /*
 *********************************************************************************************************
@@ -157,6 +169,11 @@ int main(void)
     }
 }
 
+static void tmr1_callback(void)
+{
+    blink = blink ? 0 : 1;
+}
+
 /*
 *********************************************************************************************************
 *                                          STARTUP TASK
@@ -168,29 +185,9 @@ static  void  AppTaskStart (void *p_arg)
     OS_ERR      err;
     (void)p_arg;
 
-    uint16_t key_state;
     OS_MSG_SIZE  msg_size;
     CPU_TS ts;
     uint32_t keyevent;
-
-    uint64_t test_frame[] = {
-        0x182462524a462418, // 0
-        0x7c10101010141810, // 1
-        0x7e0418204042423c, // 2
-        0x003c42201820423c, // 3
-        0x1010107e12141810, // 4
-        0x1e2020201e02023e, // 5
-        0x1c22223e0202221c, // 6
-        0x202020202022223e, // 7
-        0x1c22221c2222221c, // 8
-        0x1c22203c2222221c, // 9
-        0x0008183878381808, // go
-        0x007e7e7e7e7e7e00, // st
-        0x3c66c39999db5a18, // boot
-        0x0002ffffc2c0c000, // ent
-        0xe020f827390f3907, // esc
-        0x7e7e7e7e7e242418  // lock
-    };
 
     BSP_Init();                                                 /* Initialize BSP functions                             */
     CPU_Init();                                                 /* Initialize the uC/CPU services                       */
@@ -216,7 +213,7 @@ static  void  AppTaskStart (void *p_arg)
         "DotMat Task",
         DotMatRefreshTask,
         0u,
-        5u,
+        12u,
         &DotMatRefreshTaskStk[0u],
         DotMatRefreshTaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
         APP_CFG_TASK_START_STK_SIZE,
@@ -232,7 +229,7 @@ static  void  AppTaskStart (void *p_arg)
         "KeyEvent Task",
         KeyEventTask,
         0u,
-        4u,
+        13u,
         &KeyEventTaskStk[0u],
         KeyEventTaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
         APP_CFG_TASK_START_STK_SIZE,
@@ -242,10 +239,56 @@ static  void  AppTaskStart (void *p_arg)
         (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
         &err
     );
-    dot_state.port = 0;
+
+    /* OSTaskCreate(
+        &Level1TaskTCB,
+        "KeyEvent Task",
+        Level1Task,
+        0u,
+        14u,
+        &Level1TaskStk[0u],
+        Level1TaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
+        APP_CFG_TASK_START_STK_SIZE,
+        0u,
+        0u,
+        0u,
+        (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+        &err
+    ); */
+
+    /* OSTaskCreate(
+        &Level2TaskTCB,
+        "KeyEvent Task",
+        Level2Task,
+        0u,
+        14u,
+        &Level2TaskStk[0u],
+        Level2TaskStk[APP_CFG_TASK_START_STK_SIZE / 10u],
+        APP_CFG_TASK_START_STK_SIZE,
+        0u,
+        0u,
+        0u,
+        (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+        &err
+    ); */
+
+    dot_state.port.i = 0;
     dot_state.x = 0;
     dot_state.y = 0;
     dot_state.show = DEF_FALSE;
+
+    OSTmrCreate(
+        (OS_TMR *)&blink_TMR,            /* Pointer to timer     */
+        (CPU_CHAR *)"blink Timer",           /* Name of timer, ASCII */
+        (OS_TICK) 5,              /* Initial delay        */
+        (OS_TICK) 5,           /* Repeat period        */
+        (OS_OPT) OS_OPT_TMR_PERIODIC,              /* Options              */
+        (OS_TMR_CALLBACK_PTR)  tmr1_callback,       /* Fnct to call at 0    */
+        (void *)0,   /* Arg. to callback     */
+        (OS_ERR *)&err
+    );
+
+    OSTmrStart(&blink_TMR, &err);
 
     while (DEF_TRUE) {                                          /* Task body, always written as an infinite loop.       */
         while(keyevent = (uint32_t)OSQPend(
@@ -258,42 +301,49 @@ static  void  AppTaskStart (void *p_arg)
         ))
         {
             if(keyevent == KEY_OMIT) dot_state.show = !dot_state.show;
-            if(!dot_state.show)
+            else if(!dot_state.show)
             {
-                if(keyevent == KEY_DOWN) dot_state.y = (dot_state.y == 7) ? 7 : dot_state.y + 1;
-                else if(keyevent == KEY_UP) dot_state.y = (dot_state.y == 0) ? 0 : dot_state.y - 1;
-                else if(keyevent == KEY_RIGHT) dot_state.x = (dot_state.x == 7) ? 7 : dot_state.x + 1;
-                else if(keyevent == KEY_LEFT) dot_state.x = (dot_state.x == 0) ? 0 : dot_state.x - 1;
-                else if(keyevent == KEY_CLICK)
-                    dot_state.port ^= 1 << (dot_state.x * 8 + dot_state.y);
+                switch(keyevent)
+                {
+                    case KEY_DOWN:
+                        dot_state.y = (dot_state.y == 7) ? 7 : dot_state.y + 1;
+                        break;
+                    case KEY_UP:
+                        dot_state.y = (dot_state.y == 0) ? 0 : dot_state.y - 1;
+                        break;
+                    case KEY_RIGHT:
+                        dot_state.x = (dot_state.x == 7) ? 7 : dot_state.x + 1;
+                        break;
+                    case KEY_LEFT:
+                        dot_state.x = (dot_state.x == 0) ? 0 : dot_state.x - 1;
+                        break;
+                    case KEY_CLICK:
+                        dot_state.port.v[dot_state.x] ^= 1 << dot_state.y;
+                        break;
+                    default:
+                        break;
+                }
             }
+            OSTmrStart(&blink_TMR, &err);
         }
-            dot_buf.i = test_frame[keyevent - 1];
-            OSQPost(
-                (OS_Q *)&DotMatRefresh_Q,
-                (void *)&dot_buf,
-                (OS_MSG_SIZE) sizeof(dot_t),
-                (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
-                (OS_ERR *) &err
-            );
-            OSTimeDlyHMSM(0u, 0u, 0u, 500u,
-                      OS_OPT_TIME_HMSM_STRICT,
-                      &err);
-            dot_buf.i = 0;
-            OSQPost(
-                (OS_Q *)&DotMatRefresh_Q,
-                (void *)&dot_buf,
-                (OS_MSG_SIZE) sizeof(dot_t),
-                (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
-                (OS_ERR *) &err
-            );
-            OSTimeDlyHMSM(0u, 0u, 0u, 500u,
-                      OS_OPT_TIME_HMSM_STRICT,
-                      &err);
-
+        if(!dot_state.show)
+        {
+            dot_buf.i = dot_state.port.i ^ blink << (dot_state.x * 8 + dot_state.y);
+        }
+        else
+        {
+            dot_buf.i = blink ? dot_state.port.i : 0;
+        }
+        OSQPost(
+            (OS_Q *)&DotMatRefresh_Q,
+            (void *)&dot_buf,
+            (OS_MSG_SIZE) sizeof(dot_t),
+            (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+            (OS_ERR *) &err
+        );
         OSTimeDlyHMSM(0u, 0u, 0u, 10u,
-                      OS_OPT_TIME_HMSM_STRICT,
-                      &err);
+                    OS_OPT_TIME_HMSM_STRICT,
+                    &err);
     }
 }
 
@@ -376,5 +426,141 @@ static void DotMatRefreshTask(void *p_arg)
         OSTimeDlyHMSM(0u, 0u, 0u, 1u,
                       OS_OPT_TIME_HMSM_STRICT,
                       &err);
+    }
+}
+
+static void Level1Task(void *p_arg)
+{
+    OS_ERR err;
+    (void)p_arg;
+
+    OS_MSG_SIZE  msg_size;
+    CPU_TS ts;
+    uint32_t keyevent;
+
+    const uint64_t test_frame[] = {
+        0x182462524a462418, // 0
+        0x7c10101010141810, // 1
+        0x7e0418204042423c, // 2, up
+        0x003c42201820423c, // 3
+        0x1010107e12141810, // 4, left
+        0x1e2020201e02023e, // 5, sel
+        0x1c22223e0202221c, // 6, right
+        0x202020202022223e, // 7
+        0x1c22221c2222221c, // 8, down
+        0x1c22203c2222221c, // 9
+        0x0008183878381808, // go
+        0x007e7e7e7e7e7e00, // st
+        0x3c66c39999db5a18, // boot, show
+        0x0002ffffc2c0c000, // ent
+        0xe020f827390f3907, // esc
+        0x7e7e7e7e7e242418  // lock
+    };
+
+    while (DEF_TRUE) {
+        uint32_t keyevent = (uint32_t)OSQPend(
+            (OS_Q *)&KeyPressEvent_Q,
+            (OS_TICK)0,
+            (OS_OPT)(OS_OPT_PEND_BLOCKING),
+            (OS_MSG_SIZE *)&msg_size,
+            (CPU_TS *)&ts,
+            (OS_ERR *)err
+        );
+        if(keyevent)
+        {
+            dot_buf.i = test_frame[keyevent - 1];
+            OSQPost(
+                (OS_Q *)&DotMatRefresh_Q,
+                (void *)&dot_buf,
+                (OS_MSG_SIZE) sizeof(dot_t),
+                (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+                (OS_ERR *) &err
+            );
+            OSTimeDlyHMSM(0u, 0u, 0u, 500u,
+                      OS_OPT_TIME_HMSM_STRICT,
+                      &err);
+            dot_buf.i = 0;
+            OSQPost(
+                (OS_Q *)&DotMatRefresh_Q,
+                (void *)&dot_buf,
+                (OS_MSG_SIZE) sizeof(dot_t),
+                (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+                (OS_ERR *) &err
+            );
+            OSTimeDlyHMSM(0u, 0u, 0u, 500u,
+                      OS_OPT_TIME_HMSM_STRICT,
+                      &err);
+        }
+        OSTimeDlyHMSM(0u, 0u, 0u, 10u,
+                      OS_OPT_TIME_HMSM_STRICT,
+                      &err);
+    }
+}
+
+static void Level2Task(void *p_arg)
+{
+    OS_ERR err;
+    (void)p_arg;
+
+    OS_MSG_SIZE  msg_size;
+    CPU_TS ts;
+    uint32_t keyevent;
+
+    OSTmrStart(&blink_TMR, &err);
+
+    while (DEF_TRUE) {
+        while(keyevent = (uint32_t)OSQPend(
+            (OS_Q *)&KeyPressEvent_Q,
+            (OS_TICK)0,
+            (OS_OPT)(OS_OPT_PEND_BLOCKING),
+            (OS_MSG_SIZE *)&msg_size,
+            (CPU_TS *)&ts,
+            (OS_ERR *)err
+        ))
+        {
+            if(keyevent == KEY_OMIT) dot_state.show = !dot_state.show;
+            else if(!dot_state.show)
+            {
+                switch(keyevent)
+                {
+                    case KEY_DOWN:
+                        dot_state.y = (dot_state.y == 7) ? 7 : dot_state.y + 1;
+                        break;
+                    case KEY_UP:
+                        dot_state.y = (dot_state.y == 0) ? 0 : dot_state.y - 1;
+                        break;
+                    case KEY_RIGHT:
+                        dot_state.x = (dot_state.x == 7) ? 7 : dot_state.x + 1;
+                        break;
+                    case KEY_LEFT:
+                        dot_state.x = (dot_state.x == 0) ? 0 : dot_state.x - 1;
+                        break;
+                    case KEY_CLICK:
+                        dot_state.port.v[dot_state.y] ^= 1 << dot_state.x;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            OSTmrStart(&blink_TMR, &err);
+        }
+        if(!dot_state.show)
+        {
+            dot_buf.i = dot_state.port.i ^ blink << (dot_state.x * 8 + dot_state.y);
+        }
+        else
+        {
+            dot_buf.i = blink ? dot_state.port.i : 0;
+        }
+        OSQPost(
+            (OS_Q *)&DotMatRefresh_Q,
+            (void *)&dot_buf,
+            (OS_MSG_SIZE) sizeof(dot_t),
+            (OS_OPT) OS_OPT_POST_FIFO|OS_OPT_POST_NO_SCHED|OS_OPT_POST_ALL,
+            (OS_ERR *) &err
+        );
+        OSTimeDlyHMSM(0u, 0u, 0u, 10u,
+                    OS_OPT_TIME_HMSM_STRICT,
+                    &err);
     }
 }
