@@ -189,11 +189,12 @@ static  void  AppTaskStart (void *p_arg)
     CPU_TS ts;
     uint32_t keyevent;
 
-    BSP_Init();                                                 /* Initialize BSP functions                             */
-    CPU_Init();                                                 /* Initialize the uC/CPU services                       */
+    BSP_Init();  /* Initialize BSP functions */
+    CPU_Init();  /* Initialize the uC/CPU services */
     
     BSP_LED_Off(0u);
 
+    // Key pressed event queue
     OSQCreate(
         (OS_Q *)&KeyPressEvent_Q,
         (CPU_CHAR *)"KeyPressEvent",
@@ -201,6 +202,7 @@ static  void  AppTaskStart (void *p_arg)
         (OS_ERR *)&err
     );
 
+    // Dot matrix frame buffer
     OSQCreate(
         (OS_Q *)&DotMatRefresh_Q,
         (CPU_CHAR *)"DotMatRefresh",
@@ -208,6 +210,7 @@ static  void  AppTaskStart (void *p_arg)
         (OS_ERR *)&err
     );
 
+    // Dot matrix update driver task
     OSTaskCreate(
         &DotMatRefreshTaskTCB,
         "DotMat Task",
@@ -224,6 +227,7 @@ static  void  AppTaskStart (void *p_arg)
         &err
     );
 
+    // key matrix reader driver task
     OSTaskCreate(
         &KeyEventTaskTCB,
         "KeyEvent Task",
@@ -256,9 +260,10 @@ static  void  AppTaskStart (void *p_arg)
         &err
     ); */
 
+    // pattern edittor
     OSTaskCreate(
         &Level2TaskTCB,
-        "KeyEvent Task",
+        "Level 2 Implementation",
         Level2Task,
         0u,
         14u,
@@ -272,6 +277,7 @@ static  void  AppTaskStart (void *p_arg)
         &err
     );
 
+    // blink timer
     OSTmrCreate(
         (OS_TMR *)&blink_TMR,
         (CPU_CHAR *)"blink Timer",
@@ -283,11 +289,13 @@ static  void  AppTaskStart (void *p_arg)
         (OS_ERR *)&err
     );
 
+    // pattern state initializer
     dot_state.port.i = 0;
     dot_state.x = 0;
     dot_state.y = 0;
     dot_state.show = DEF_FALSE;
 
+    // infinite loop
     while (DEF_TRUE) {
         OSTimeDlyHMSM(0u, 0u, 0u, 100u,
                     OS_OPT_TIME_HMSM_STRICT,
@@ -303,18 +311,23 @@ static void KeyEventTask(void *p_arg)
     uint16_t key_state;
     uint32_t key_log[16] = {0};
     CPU_BOOLEAN key_priv[16] = {0};
-    /* st, go, lock, boot, 3, 6, 9, esc, 2, 5, 8, 0, 1, 4, 7, ent */
+    // st, go, lock, boot, 3, 6, 9, esc, 2, 5, 8, 0, 1, 4, 7, ent
     const uint8_t key_cross[] = {
         11, 10, 15, 12, 3, 6, 9, 14, 2, 5, 8, 0, 1, 4, 7, 13
     };
-    uint32_t tmp;
 
     while(DEF_TRUE)
     {
+        // Read key matrix state
         key_state = BSP_KeyMat_read();
+
+        // for every button
         for(uint32_t i = 0; i < 16; i++)
         {
+            // refresh key pressed log
             key_log[i] = (key_log[i] << 1) | ((key_state&(1<<i))?1:0);
+
+            // if LPF(key pressed log) over threshold and key is just pressed
             if((__builtin_popcount(key_log[i]) > LP_TH) && !key_priv[i])
             {
                 key_priv[i] = DEF_TRUE;
@@ -326,13 +339,16 @@ static void KeyEventTask(void *p_arg)
                     (OS_ERR *) &err
                 );
             }
+
+            // if LPF(key pressed log) under threshold and key is just released
             else if((__builtin_popcount(key_log[i]) < LP_TH) && key_priv[i]) key_priv[i] = DEF_FALSE;
+
+            // unnessery part
             else
             {
                 __NOP();
             }
         }
-        tmp = __builtin_popcount(key_log[11]);
         
         OSTimeDlyHMSM(0u, 0u, 0u, 10u,
                       OS_OPT_TIME_HMSM_STRICT,

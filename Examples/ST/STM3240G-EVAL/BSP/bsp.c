@@ -175,6 +175,8 @@
 static  void  BSP_LED_Init        (void);
 static  void  BSP_ButtonInit    (void);
 static  void  BSP_SEGMENT_Init  (void);
+static void BSP_DotMat_Init(void);
+static void BSP_KeyMat_Init(void);
 /*
 *********************************************************************************************************
 *                                               BSP_Init()

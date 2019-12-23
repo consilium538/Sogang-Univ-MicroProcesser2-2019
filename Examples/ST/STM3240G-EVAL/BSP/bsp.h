@@ -431,7 +431,6 @@ static void        BSP_ButtonInit(void);
 void        BSP_SEGMENT_On (CPU_INT08U com, CPU_INT08U seg);
 void        BSP_SEGMENT_Off (void);
 
-static void BSP_DotMat_Init(void);
 void BSP_DotMat_write(CPU_INT08U rowdata, CPU_INT08U colnum);
 
 /*
@@ -440,7 +439,6 @@ void BSP_DotMat_write(CPU_INT08U rowdata, CPU_INT08U colnum);
 *********************************************************************************************************
 */
 
-static void BSP_KeyMat_Init(void);
 
 CPU_INT16U BSP_KeyMat_read(void);
 
